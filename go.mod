@@ -1,3 +1,3 @@
-module geralt18/go-demo-1
+module geralt18/go-manga-see-dl
 
 go 1.16
