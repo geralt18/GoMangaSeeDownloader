@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 )
 
 func main() {
@@ -32,34 +33,44 @@ func main() {
 		urls[strings.TrimSpace(s[0])] = strings.TrimSpace(s[1])
 	}
 
+	var wg sync.WaitGroup
+
 	for k, v := range urls {
+		wg.Add(1)
 		baseUrl := k
 		basePath := v
 		chapterStart := 5
 		chapterCount := 1
 
-		for chapter := chapterStart; chapter < chapterStart+chapterCount; chapter++ {
-			page := 0
-			dirPath := fmt.Sprintf("%s%04d", basePath, chapter)
+		go DownloadManga(chapterStart, chapterCount, basePath, baseUrl, &wg)
+	}
+	wg.Wait()
+}
 
-			fmt.Printf("Rozpoczynam pobieranie rodziału %04d\n", chapter)
-			err := os.MkdirAll(dirPath, 0777)
+func DownloadManga(chapterStart int, chapterCount int, basePath string, baseUrl string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for chapter := chapterStart; chapter < chapterStart+chapterCount; chapter++ {
+		page := 0
+		dirPath := fmt.Sprintf("%s%04d", basePath, chapter)
+
+		fmt.Printf("Rozpoczynam pobieranie rodziału %04d\n", chapter)
+		err := os.MkdirAll(dirPath, 0777)
+		if err != nil {
+			fmt.Println("Problem z utworzeniem katalogu ", dirPath, err)
+			break
+		}
+
+		for {
+			page++
+			url := fmt.Sprintf("%s%04d-%03d.png", baseUrl, chapter, page)
+			filePath := fmt.Sprintf("%s%04d\\%03d.png", basePath, chapter, page)
+
+			fmt.Printf("Pobieram plik %s\n", url)
+			err := DownloadFile(filePath, url)
 			if err != nil {
-				fmt.Println("Problem z utworzeniem katalogu ", dirPath, err)
+				fmt.Println(err)
 				break
-			}
-
-			for {
-				page++
-				url := fmt.Sprintf("%s%04d-%03d.png", baseUrl, chapter, page)
-				filePath := fmt.Sprintf("%s%04d\\%03d.png", basePath, chapter, page)
-
-				fmt.Printf("Pobieram plik %s\n", url)
-				err := DownloadFile(filePath, url)
-				if err != nil {
-					fmt.Println(err)
-					break
-				}
 			}
 		}
 	}
