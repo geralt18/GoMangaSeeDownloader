@@ -1,3 +1,3 @@
-module geralt18/go-manga-see-dl
+module geralt18/mangasee
 
 go 1.16
