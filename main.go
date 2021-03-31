@@ -14,7 +14,15 @@ import (
 	"sync"
 )
 
+var (
+	Version   = "0.0.0"
+	BuildTime = "2000-01-01T00:00:00"
+)
+
 func main() {
+	fmt.Println("Version:\t", Version)
+	fmt.Println("BuildTime:\t", BuildTime)
+
 	urls := make(map[string]string)
 	args := os.Args[1:]
 
