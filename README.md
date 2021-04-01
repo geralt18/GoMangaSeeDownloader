@@ -36,17 +36,23 @@ Download and install go then build and run
 <!-- USAGE EXAMPLES -->
 ## Usage
 
+To download mangas from semicolon separated file (mangas.txt):
 ```sh
 mangasee
 ```
 
+To download manga from url to exe directory
 ```sh
 mangasee url
 ```
-
+To download manga from url to specific path
 ```sh
 mangasee url path
 ```
+
+<!-- REMARKS -->
+## REMARKS
+Only tested on Windows.
 
 
 <!-- MARKDOWN LINKS & IMAGES -->
