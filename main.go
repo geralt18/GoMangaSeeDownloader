@@ -67,8 +67,8 @@ func main() {
 		wg.Add(1)
 		baseUrl := k
 		basePath := v
-		chapterStart := 5
-		chapterCount := 1
+		chapterStart := 1
+		chapterCount := 9999
 
 		go DownloadManga(chapterStart, chapterCount, basePath, baseUrl, &wg)
 	}
@@ -83,19 +83,34 @@ func GetExeDirectory() string {
 	return filepath.Dir(ex)
 }
 
+func DirIsEmpty(name string) (bool, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	_, err = f.Readdirnames(1) // Or f.Readdir(1)
+	if err == io.EOF {
+		return true, nil
+	}
+	return false, err // Either not empty or error, suits both cases
+}
+
 func DownloadManga(chapterStart int, chapterCount int, basePath string, baseUrl string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	fmt.Printf("Manga url: %s\n", baseUrl)
 	fmt.Printf("Folder path: %s\n", basePath)
+	chapterErrorCount := 0
 
 	for chapter := chapterStart; chapter < chapterStart+chapterCount; chapter++ {
 		page := 0
-		dirPath := path.Join(basePath, fmt.Sprintf("%04d", chapter))
+		chapterPath := path.Join(basePath, fmt.Sprintf("%04d", chapter))
 
 		fmt.Printf("Downloading chapter %04d\n", chapter)
-		err := os.MkdirAll(dirPath, 0777)
+		err := os.MkdirAll(chapterPath, 0777)
 		if err != nil {
-			fmt.Println("Error creating directory ", dirPath, err)
+			fmt.Println("Error creating directory ", chapterPath, err)
 			break
 		}
 
@@ -108,8 +123,19 @@ func DownloadManga(chapterStart int, chapterCount int, basePath string, baseUrl 
 			err := DownloadFile(filePath, url)
 			if err != nil {
 				fmt.Println(err)
+				if page == 1 {
+					chapterErrorCount++
+					if v, _ := DirIsEmpty(chapterPath); v {
+						os.Remove(chapterPath)
+					}
+				}
+
 				break
 			}
+		}
+
+		if chapterErrorCount >= 3 {
+			break
 		}
 	}
 }
