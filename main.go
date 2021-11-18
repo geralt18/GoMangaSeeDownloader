@@ -25,14 +25,29 @@ func main() {
 
 	urls := make(map[string]string)
 	args := os.Args[1:]
+	singleChapter := false
+	chapter := ""
 
-	if len(args) > 1 {
+	if len(args) > 2 {
+		//Read managa URLs from args and download single chapter to specified path
+		//Third arg is chapter
+		singleChapter = true
+		chapter = args[2]
+
+		if filepath.IsAbs(strings.TrimSpace(args[1])) {
+			urls[strings.TrimSpace(args[0])] = strings.TrimSpace(args[1])
+		} else {
+			urls[strings.TrimSpace(args[0])] = path.Join(GetExeDirectory(), strings.TrimSpace(args[1]))
+		}
+	} else if len(args) == 2 {
+		//Read managa URLs from args and download to specified path
 		if filepath.IsAbs(strings.TrimSpace(args[1])) {
 			urls[strings.TrimSpace(args[0])] = strings.TrimSpace(args[1])
 		} else {
 			urls[strings.TrimSpace(args[0])] = path.Join(GetExeDirectory(), strings.TrimSpace(args[1]))
 		}
 	} else if len(args) == 1 {
+		//Read manga URL from args and download to default path
 		u, err := url.Parse(args[0])
 		if err != nil {
 			log.Println(err)
@@ -40,6 +55,7 @@ func main() {
 		}
 		urls[strings.TrimSpace(args[0])] = path.Join(GetExeDirectory(), strings.TrimSpace(u.Path))
 	} else if file, err := os.Open("mangas.txt"); err == nil {
+		//Read manga URLs from file
 		defer file.Close()
 
 		scanner := bufio.NewScanner(file)
@@ -48,6 +64,7 @@ func main() {
 			urls[strings.TrimSpace(s[0])] = strings.TrimSpace(s[1])
 		}
 	} else {
+		//File with manga URLs doesn't exist
 		if err != nil {
 			log.Println(err)
 			fmt.Scanln() // wait for Enter Key
@@ -63,16 +80,28 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	for k, v := range urls {
-		wg.Add(1)
-		baseUrl := k
-		basePath := v
-		chapterStart := 1
-		chapterCount := 9999
+	if singleChapter {
+		for k, v := range urls {
+			wg.Add(1)
+			baseUrl := k
+			basePath := v
 
-		go DownloadManga(chapterStart, chapterCount, basePath, baseUrl, &wg)
+			go DownloadSingleChapter(chapter, basePath, baseUrl, &wg)
+		}
+	} else {
+
+		for k, v := range urls {
+			wg.Add(1)
+			baseUrl := k
+			basePath := v
+			chapterStart := 1
+			chapterCount := 9999
+
+			go DownloadManga(chapterStart, chapterCount, basePath, baseUrl, &wg)
+		}
 	}
 	wg.Wait()
+
 }
 
 func GetExeDirectory() string {
@@ -95,6 +124,41 @@ func DirIsEmpty(name string) (bool, error) {
 		return true, nil
 	}
 	return false, err // Either not empty or error, suits both cases
+}
+
+func DownloadSingleChapter(chapter string, basePath string, baseUrl string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	fmt.Printf("Manga url: %s\n", baseUrl)
+	fmt.Printf("Folder path: %s\n", basePath)
+	page := 0
+	chapterPath := path.Join(basePath, fmt.Sprintf("%s", chapter))
+
+	fmt.Printf("Downloading chapter %s\n", chapter)
+	err := os.MkdirAll(chapterPath, 0777)
+	if err != nil {
+		fmt.Println("Error creating directory ", chapterPath, err)
+		return
+	}
+
+	for {
+		page++
+		url := fmt.Sprintf("%s%s-%03d.png", baseUrl, chapter, page)
+		filePath := path.Join(basePath, fmt.Sprintf("%s\\%03d.png", chapter, page))
+
+		fmt.Printf("Downloading file %s\n", url)
+		err := DownloadFile(filePath, url)
+		if err != nil {
+			fmt.Println(err)
+			if page == 1 {
+
+				if v, _ := DirIsEmpty(chapterPath); v {
+					os.Remove(chapterPath)
+				}
+			}
+
+			break
+		}
+	}
 }
 
 func DownloadManga(chapterStart int, chapterCount int, basePath string, baseUrl string, wg *sync.WaitGroup) {
